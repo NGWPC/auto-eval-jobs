@@ -105,6 +105,9 @@ def process_points(vector_path: str, raster_path: str, output_path: str, log: lo
     # Only keep distances for misses (set hits to 0)
     gdf_proj.loc[gdf_proj['hit'] == 'hit', 'dist_to_hit_ft'] = 0.0
 
+    # Round distance to 2 decimal places
+    gdf_proj['dist_to_hit_ft'] = gdf_proj['dist_to_hit_ft'].round(2)
+
     # Clean up temp columns
     gdf_proj = gdf_proj.drop(columns=['raster_val', 'dist_to_hit_crs'])
 
@@ -115,6 +118,15 @@ def process_points(vector_path: str, raster_path: str, output_path: str, log: lo
 
 
 def main():
+
+    '''
+    Example usage:
+    python3 compare_to_hwms.py 
+    --vector_path /efs/fim-data/projects/brad/autoeval-jobs/hwm_evaluator/test/1201005_hwm_test_data.gpkg 
+    --raster_path /efs/fim-data/projects/brad/autoeval-jobs/hwm_evaluator/test/12010005_candidate_fim_test_data.tif 
+    --output_path /efs/fim-data/projects/brad/autoeval-jobs/hwm_evaluator/test/test_output.gpkg
+    '''
+
     parser = argparse.ArgumentParser(
         description="Compute raster hits and distance to hits for point data."
     )
