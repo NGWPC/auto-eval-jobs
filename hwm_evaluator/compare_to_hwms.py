@@ -25,8 +25,14 @@ def convert_feet(feet: float, unit_guess: str) -> float:
         return feet * 0.3048  # Assume meters if unknown
 
 
-def process_points(vector_path: str, raster_path: str, output_path: str, log: logging.Logger):
-    """Process point data against raster to compute hits and miss distances."""
+def compare_to_hwms(vector_path: str, raster_path: str, output_path: str, log: logging.Logger):
+
+    """
+    Compares HWM data to candidate FIM, computes distance from each point to nearest
+    FIM pixel. If intersect, "hit". If no intersect, "miss". "dist_to_hit_ft" captures
+    error across space measured in ft.
+
+    """
 
     # Load raster metadata
     log.info("Loading raster to read CRS and resolution...")
@@ -108,6 +114,26 @@ def process_points(vector_path: str, raster_path: str, output_path: str, log: lo
     # Round distance to 2 decimal places
     gdf_proj['dist_to_hit_ft'] = gdf_proj['dist_to_hit_ft'].round(2)
 
+     # Compute summary statistics for CSV
+    total_points = len(gdf_proj)
+    num_hits = (gdf_proj['hit'] == 'hit').sum()
+    num_misses = total_points - num_hits
+    mean_dist = gdf_proj['dist_to_hit_ft'].mean().round(2)
+    median_dist = gdf_proj['dist_to_hit_ft'].median().round(2)
+
+    # Export summary to CSV
+    summary_data = {
+        'total_points': [total_points],
+        'num_hits': [num_hits],
+        'num_misses': [num_misses],
+        'mean_dist_to_hit_ft': [mean_dist],
+        'median_dist_to_hit_ft': [median_dist]
+    }
+    summary_df = gpd.pd.DataFrame(summary_data)
+    csv_path = str(Path(output_path).with_suffix('.csv')).replace('.gpkg', '_summary.csv')
+    log.info(f"Saving summary CSV to {csv_path}...")
+    summary_df.to_csv(csv_path, index=False)
+
     # Clean up temp columns
     gdf_proj = gdf_proj.drop(columns=['raster_val', 'dist_to_hit_crs'])
 
@@ -138,7 +164,7 @@ def main():
     log = logging.getLogger(JOB_ID)
 
     try:
-        process_points(args.vector_path, args.raster_path, args.output_path, log)
+        compare_to_hwms(args.vector_path, args.raster_path, args.output_path, log)
         log.info("Processing completed successfully.")
     except Exception as e:
         log.error(f"{JOB_ID} run failed: {type(e).__name__}: {str(e)}")
