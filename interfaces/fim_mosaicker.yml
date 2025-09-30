@@ -1,0 +1,78 @@
+id: fim_mosaicker
+description: Mosaics and homogenizes overlapping raster flood observations into a combined dataset with optional clipping/reprojection
+outputTransmission:
+  - reference # Indicates output metadata/path is transmitted, not the full data 
+
+arguments:
+
+  fim_type:
+    title: FIM Type
+    description: Type of flood inundation map output
+    schema:
+      type: string
+      enum: [depth, extent]
+      default: depth
+
+inputs:
+  raster_paths:
+    title: Input Raster Paths
+    description: >
+      Either a JSON array of GeoTIFF URIs, or a single path/URI to a
+      JSON file that contains such an array.
+    required: true
+    schema:
+      oneOf:
+        - type: array
+          items:
+            type: string
+            format: uri
+            contentMediaType: image/tiff; application=geotiff
+          minItems: 1
+        - type: string
+          description: "Filesystem or cloud path to a JSON file with the array"
+
+  clip_geometry_path:
+    title: Clipping Geometry Path
+    description: Path/URI to a vector file (e.g., GeoJSON, GPKG) containing polygon(s) for clipping the output mosaic.
+    required: false 
+    schema:
+      type: string
+      format: uri
+
+outputs:
+  mosaic_output_path:
+    title: Mosaicked Dataset Path
+    description: Path for the unified flood observation output (Raster GeoTIFF or Vector GeoPackage, EPSG:5070).
+    schema:
+      oneOf: 
+        - type: string
+          format: uri 
+          contentMediaType: image/tiff; application=geotiff
+          properties: 
+            crs:
+              const: EPSG:5070
+              description: Standard US analysis projection with equal area preservation
+            units: meters
+            dtype: uint8        
+            nodata: 255         
+            compression: lzw    
+          when: 
+            properties:
+              fim_type:
+                const: extent
+
+        - type: string
+          format: uri 
+          contentMediaType: image/tiff; application=geotiff
+          properties: 
+            crs:
+              const: EPSG:5070
+              description: Standard US analysis projection with equal area preservation
+            units: meters
+            dtype: float32      
+            nodata: -9999       
+            compression: lzw    
+          when: 
+            properties:
+              fim_type:
+                const: depth

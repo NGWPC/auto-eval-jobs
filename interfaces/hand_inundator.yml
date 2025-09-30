@@ -1,0 +1,67 @@
+id: hand_inundator
+description: Generates flood inundation extents using HAND methodology and NWM forecasts
+outputTransmission:
+  - reference 
+
+arguments:
+  fim_type:
+    title: FIM Output Type
+    description: Choose between depth values or binary inundation extent for the output raster.
+    schema:
+      type: string
+      enum: [extent, depth]
+      default: extent 
+
+inputs:
+  catchment_data_path:
+    title: Catchment Metadata Path
+    description: Path/URI to a JSON file containing catchment HydroID rating curves, metadata, and paths to required raster data (HAND, Catchment).
+    required: true # Assuming this is always needed
+    schema:
+      type: string
+      format: uri
+      contentMediaType: application/json
+
+  forecast_path:
+    title: Forecast Path
+    description: Path/URI to a CSV file with NWM discharge predictions (or other flow scenario data).
+    required: true 
+    schema:
+      type: string
+      format: uri
+      contentMediaType: text/csv
+
+outputs:
+  fim_output_path:
+    title: FIM Output Path
+    description: Path for the generated Flood Inundation Map (depth or extent raster) in CONUS Albers (EPSG:5070).
+    schema:
+      oneOf: # Output format depends on the 'fim_type' argument
+        # Extent raster specification
+        - type: string
+          format: uri 
+          contentMediaType: image/tiff; application=geotiff
+          properties: 
+            compression: lzw
+            dtype: uint8
+            nodata: 255
+            crs:
+              const: EPSG:5070
+          when:
+            properties:
+              fim_type: 
+                const: extent
+        # Depth raster specification
+        - type: string
+          format: uri 
+          contentMediaType: image/tiff; application=geotiff
+          properties: 
+            compression: lzw
+            dtype: float32
+            nodata: -9999 
+            crs:
+              const: EPSG:5070
+          when:
+            properties:
+              fim_type: 
+                const: depth
