@@ -1,0 +1,104 @@
+id: agreement_maker
+description: Creates a raster agreement map showing where two input raster datasets spatially concur. Calculates agreement based on the specified fim_type (extent or depth) and produces an output raster map, optionally clipped.
+outputTransmission:
+  - reference
+
+arguments:
+  fim_type:
+    title: FIM Type for Agreement
+    description: Specifies whether agreement is based on spatial 'extent' overlap (binary) or potentially 'depth' values. Influences output raster format.
+    schema:
+      type: string
+      enum: [extent, depth]
+      default: extent
+  block_size:
+    title: Block Size for Writing
+    description: Block size for writing agreement raster. Affects memory usage and I/O performance.
+    schema:
+      type: integer
+      default: 4096
+      minimum: 256
+      maximum: 8192
+
+inputs:
+  benchmark_path:
+    title: Benchmark Raster Path
+    description: Path/URI to the benchmark raster dataset (GeoTIFF) representing the ground truth or reference flood map (extent or depth).
+    required: true
+    schema:
+      type: string
+      format: uri
+      contentMediaType: image/tiff; application=geotiff
+      properties:
+        crs:
+          const: EPSG:5070
+  candidate_path:
+    title: Candidate Raster Path
+    description: Path/URI to the candidate raster dataset (GeoTIFF) to compare against the benchmark (extent or depth).
+    required: true
+    schema:
+      type: string
+      format: uri
+      contentMediaType: image/tiff; application=geotiff
+      properties:
+        crs:
+          const: EPSG:5070
+  clip_geoms:
+    title: Clipping Geometry dictionary
+    description: Optional path/URI to a file containing paths to geopackage or geojson vector masks used to exclude or include areas in the final agreement raster.
+    required: false
+    schema:
+      type: string
+      format: uri
+      contentMediaType: application/json
+
+outputs:
+  output_path:
+    title: Agreement Raster Path
+    description: Path for the output agreement raster map (GeoTIFF) in Cloud Optimized GeoTIFF format. Agreement map encoding - 0=TN, 1=FN, 2=FP, 3=TP, 4=Masked, 255=NoData.
+    schema:
+      oneOf:
+        - title: Extent Agreement Raster
+          description: Output for fim_type 'extent'. Binary agreement using pairing dictionary with encoding 0=TN, 1=FN, 2=FP, 3=TP, 4=Masked, 10=NoData.
+          type: string
+          format: uri
+          contentMediaType: image/tiff; application=geotiff
+          properties:
+            compression:
+              const: lzw
+            dtype:
+              const: uint8
+            nodata:
+              const: 255
+            format:
+              const: COG
+          when:
+            properties:
+              fim_type:
+                const: extent
+        - title: Depth Agreement Raster
+          description: Output for fim_type 'depth'. Depth-based agreement (planned future implementation).
+          type: string
+          format: uri
+          contentMediaType: image/tiff; application=geotiff
+          properties:
+            compression:
+              const: lzw
+            dtype:
+              const: float32
+            nodata:
+              const: -9999
+            format:
+              const: COG
+          when:
+            properties:
+              fim_type:
+                const: depth
+  metrics_path:
+    title: Metrics Table Path
+    description: Optional path for the output metrics table (CSV) containing categorical validation metrics computed from the agreement map.
+    required: false
+    schema:
+      type: string
+      format: uri
+      contentMediaType: text/csv
