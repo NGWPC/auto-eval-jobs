@@ -6,3 +6,6 @@ pyarrow==20.0.0
 python-json-logger==3.3.0
 rasterio==1.4.3
 s3fs==2025.5.1
+geopandas==1.1.1
+rasterstats==0.20.0
+shapely==2.1.2
