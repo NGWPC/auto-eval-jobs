@@ -8,8 +8,6 @@ By convention when outputs are listed for a job it is assumed that these outputs
 
 ## HAND Inundator (`hand_inundator`)
 
-**Implementation status: Inundated extents implemented. Depth FIM production will be added in FY26**
-
 ### Example command
 
 From inside the inundate-dev container would run:
@@ -29,31 +27,10 @@ This example lists all possible arguments. See yaml files for optional vs requir
 
 ### Inputs 
 - **catchment_data_path**:
-  - This input is path to a JSON file that contains a rating curve every HydroID in a HAND catchment along with metadata necessary to process the HydroID. The json file should have the following structure:
-  ```json
-  {
-      "<catchment_id>": {
-        "hydrotable_entries": {
-          "<HydroID>": {
-            "stage": ["array_of_stage_values"],
-            "discharge_cms": ["array_of_discharge_values"],
-            "nwm_feature_id": "<integer>",
-            "lake_id": "<integer>"
-          }
-          // More HydroID entries...
-        },
-        "raster_pair": {
-          "rem_raster_path": "<path_value>",
-          "catchment_raster_path": "<path_value>"
-        }
-      }
-  }
-  ```
-  - The **raster_pair** lists paths to the two rasters that are used to generate the HAND extent.
-    - **rem_raster_path**
-    - This is a path to a HAND relative elevation tiff for this catchment. This would typically be an s3 path but could be a local filepath as well. 
-    - **catchment_raster_path**
-    - This is a path to a tiff that helps map every location in the catchment to a rating curve associated with that location. Every pixel is assigned an integer value that reflects the HydroID of the sub-catchment it is in. This value can then be used to look up an associated rating curve in the hydrotable_entries object inside the catchment json. This rating curve is used to interpolate a stage value for a given NWM reach discharge. If the stage value is larger than the HAND value at that pixel then the pixel is marked flooded.
+  - This input is path to a parquet file that links to 3 files:
+    1. A hydrotable csv file containing stage-discharge relationships for every hydroid in the catchment
+    2. A HAND relative elevation model raster
+    3. A raster that links HAND relative elevation model pixels for that catchment to their respective hydroIDs in the catchments hydrotable
 - **forecast_path**
   - A path to a csv file listing NWM feature_id values and their respective discharges. A stage is obtained for these discharges for each HydroID catchment by using the rating associated with that HydroID.
 
