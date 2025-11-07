@@ -42,10 +42,8 @@ def inundate(
 ) -> str:
     """
     Generate an inundation map from:
-      1) A catchment Parquet (with csv_path, rem_raster_path, catchment_raster_path)
-      2) A hydrotable CSV (individual stage/discharge rows per HydroID)
-      3) An NWM forecast CSV (feature_id, discharge)
-      4) Two rasters: REM & catchment ID
+      1) A catchment Parquet (with pointers to csv_path, rem_raster_path, catchment_raster_path) and the files pointed to by the paths in the parquet table
+      2) An NWM forecast CSV (feature_id, discharge)
 
     Writes a uint8 flooded/dry mask to `output_path` (local or s3://).
     """

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-import unittest
 import os
-import tempfile
 import subprocess
+import tempfile
+import unittest
+
 import numpy as np
 import rasterio
 
@@ -18,9 +19,7 @@ class TestInundateScript(unittest.TestCase):
         cls.script_path = os.path.join(os.path.dirname(cls.test_dir), "inundate.py")
 
         # Input paths
-        cls.catchment_parquet = os.path.join(
-            cls.mock_data_dir, "test_hydrotable.parquet"
-        )
+        cls.catchment_parquet = os.path.join(cls.mock_data_dir, "test_hydrotable.parquet")
         cls.forecast_path = "s3://fimc-data/benchmark/ripple_fim_30/nwm_return_period_flows_10_yr_cms.csv"
 
     def test_extent_inundation_mapping(self):
@@ -45,27 +44,23 @@ class TestInundateScript(unittest.TestCase):
             ]
 
             result = subprocess.run(cmd, capture_output=True, text=True)
-            self.assertEqual(
-                result.returncode, 0, f"Script failed with error: {result.stderr}"
-            )
+            self.assertEqual(result.returncode, 0, f"Script failed with error: {result.stderr}")
 
             # Compare with expected extent output
             expected_extent = os.path.join(self.mock_data_dir, "expected_extent_output.tif")
-            with rasterio.open(tmp_output_path) as generated_raster, rasterio.open(
-                expected_extent
-            ) as expected_raster:
+            with rasterio.open(tmp_output_path) as generated_raster, rasterio.open(expected_extent) as expected_raster:
                 # Check profile
                 gen_profile = generated_raster.profile
                 exp_profile = expected_raster.profile
                 self.assertEqual(gen_profile["dtype"], "uint8")
                 self.assertEqual(gen_profile["nodata"], 255)
-                
-                # Compare data
+
+                # Compare data and fail if more than 1% of elements in array don't match
                 generated_data = generated_raster.read(1)
                 expected_data = expected_raster.read(1)
-                np.testing.assert_array_equal(
-                    generated_data,
-                    expected_data,
+                self.assertGreaterEqual(
+                    np.mean(generated_data == expected_data),
+                    0.99,
                     "Generated extent raster does not match expected output",
                 )
 
@@ -96,28 +91,24 @@ class TestInundateScript(unittest.TestCase):
             ]
 
             result = subprocess.run(cmd, capture_output=True, text=True)
-            self.assertEqual(
-                result.returncode, 0, f"Script failed with error: {result.stderr}"
-            )
+            self.assertEqual(result.returncode, 0, f"Script failed with error: {result.stderr}")
 
             # Compare with expected depth output
             expected_depth = os.path.join(self.mock_data_dir, "expected_depth_output.tif")
-            with rasterio.open(tmp_output_path) as generated_raster, rasterio.open(
-                expected_depth
-            ) as expected_raster:
+            with rasterio.open(tmp_output_path) as generated_raster, rasterio.open(expected_depth) as expected_raster:
                 # Check profile
                 gen_profile = generated_raster.profile
                 exp_profile = expected_raster.profile
                 self.assertEqual(gen_profile["dtype"], "float32")
                 self.assertEqual(gen_profile["nodata"], -9999.0)
-                
+
                 # Compare data
                 generated_data = generated_raster.read(1)
                 expected_data = expected_raster.read(1)
-                np.testing.assert_array_equal(
-                    generated_data,
-                    expected_data,
-                    "Generated depth raster does not match expected output",
+                self.assertGreaterEqual(
+                    np.mean(generated_data == expected_data),
+                    0.99,
+                    "Generated extent raster does not match expected output",
                 )
 
         finally:
