@@ -73,9 +73,6 @@ The mosaic job was implemented the way it was to follow the example of gdal_calc
 - **mosaic_output_path**
   - **Raster**
     - In the case of raster output, the output will be a path pointing to a single mosaicked raster.
-  - **Vector** 
-    - In the case of vector output, the output will be a path pointing to a single mosaicked vector gpkg.
-
 ---
 
 ## Agreement Maker (`agreement_maker`) 

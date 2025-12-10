@@ -42,7 +42,7 @@ inputs:
 outputs:
   mosaic_output_path:
     title: Mosaicked Dataset Path
-    description: Path for the unified flood observation output (Raster GeoTIFF or Vector GeoPackage, EPSG:5070).
+    description: Path for the unified flood observation output (Raster GeoTIFF, EPSG:5070).
     schema:
       oneOf: 
         - type: string

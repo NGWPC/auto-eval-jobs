@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import argparse
 import gc
 import json
@@ -21,6 +20,7 @@ from osgeo_utils.auxiliary import extent_util
 from osgeo_utils.auxiliary.extent_util import Extent, GeoTransform
 from osgeo_utils.auxiliary.rectangle import GeoRectangle
 from osgeo_utils.auxiliary.util import open_ds
+
 from utils.logging import setup_logger
 
 gdal.UseExceptions()
@@ -88,9 +88,7 @@ def load_rasters(paths: List[str], log: logging.Logger) -> List[RasterInfo]:
     return recs
 
 
-def pick_target_grid(
-    srcs: List[RasterInfo], log: logging.Logger
-) -> Tuple[GeoTransform, Tuple[int, int], str]:
+def pick_target_grid(srcs: List[RasterInfo], log: logging.Logger) -> Tuple[GeoTransform, Tuple[int, int], str]:
     """
     Finds the lowest resolution raster and picks that as the resolution to project to.
     Determines the bounds of the final mosaic. Also, uses the projection of the lowest
@@ -102,9 +100,7 @@ def pick_target_grid(
 
     gts = [r.gt for r in srcs]
     dims_list = [r.dims for r in srcs]
-    _, _, rect = extent_util.calc_geotransform_and_dimensions(
-        gts, dims_list, input_extent=Extent.UNION
-    )
+    _, _, rect = extent_util.calc_geotransform_and_dimensions(gts, dims_list, input_extent=Extent.UNION)
     if not isinstance(rect, GeoRectangle):
         raise RuntimeError("Invalid union extent")
 
@@ -133,11 +129,7 @@ def build_vrts(
     tmpdir = tempfile.mkdtemp(prefix="vrt_")
     aligned: List[AlignedSource] = []
     for r in srcs:
-        same = (
-            np.allclose(r.gt, gt, atol=1e-6)
-            and r.dims == dims
-            and r.proj == crs_wkt
-        )
+        same = np.allclose(r.gt, gt, atol=1e-6) and r.dims == dims and r.proj == crs_wkt
         if same:
             aligned.append(AlignedSource(ds=r.ds, original_path=r.path))
         else:
@@ -226,9 +218,7 @@ def process_single_block(
         except RuntimeError as e:
             # This catches read failures (often caused by HTTP 400 errors from S3)
             # and allows the script to continue with the other rasters.
-            log.warning(
-                f"Read failed for block ({x},{y}) in {src.original_path}. Skipping. Error: {e}"
-            )
+            log.warning(f"Read failed for block ({x},{y}) in {src.original_path}. Skipping. Error: {e}")
             continue  # Move to the next source file
 
     out = write_buf[:h, :w]
@@ -290,9 +280,7 @@ def mosaic_blocks(
     if parallel_blocks == 1:
         log.info(f"Processing {total_blocks} blocks sequentially")
     else:
-        log.info(
-            f"Processing {total_blocks} blocks with {parallel_blocks} parallel workers"
-        )
+        log.info(f"Processing {total_blocks} blocks with {parallel_blocks} parallel workers")
 
     # Create locks for thread-safe GDAL operations
     write_lock = threading.Lock()
@@ -349,9 +337,7 @@ def mosaic_blocks(
     log.info(f"Converting GTiff to COG: {outpath}")
     cog_drv = gdal.GetDriverByName("COG")
     src_ds = gdal.Open(temp_gtiff, gdal.GA_ReadOnly)
-    cog_ds = cog_drv.CreateCopy(
-        outpath, src_ds, strict=0, options=["COMPRESS=LZW", "BIGTIFF=IF_SAFER"]
-    )
+    cog_ds = cog_drv.CreateCopy(outpath, src_ds, strict=0, options=["COMPRESS=LZW", "BIGTIFF=IF_SAFER"])
     src_ds = None
 
     # Clean up temp file
@@ -370,9 +356,7 @@ def clip_output(src: str, clip_path: str, nodata, log: logging.Logger):
 
     with fsspec.open(clip_path, "rb") as f:
         # Create temporary file for GDAL to use
-        temp_clip = tempfile.NamedTemporaryFile(
-            suffix=Path(clip_path).suffix, delete=False
-        ).name
+        temp_clip = tempfile.NamedTemporaryFile(suffix=Path(clip_path).suffix, delete=False).name
         with open(temp_clip, "wb") as local_file:
             shutil.copyfileobj(f, local_file)
 
@@ -442,7 +426,7 @@ def main():
         "--fim_type",
         choices=["depth", "extent"],
         default="extent",
-        help="'extent'→ byte, 255 nodata; 'depth' -> float32, -9999 no data",
+        help="'extent'-> byte, 255 nodata; 'depth' -> float32, -9999 no data",
     )
     p.add_argument(
         "--parallel_blocks",
@@ -466,14 +450,8 @@ def main():
                 ".netcdf",
             }
             all_files = list(Path(input_rp[0]).iterdir())
-            paths = [
-                str(p)
-                for p in all_files
-                if p.is_file() and p.suffix.lower() in raster_extensions
-            ]
-            log.info(
-                f"Found {len(paths)} raster files (out of {len(all_files)} total) in directory {input_rp}"
-            )
+            paths = [str(p) for p in all_files if p.is_file() and p.suffix.lower() in raster_extensions]
+            log.info(f"Found {len(paths)} raster files (out of {len(all_files)} total) in directory {input_rp}")
         else:
             # either multiple shell-split tokens or one quoted string
             joined = " ".join(input_rp)
