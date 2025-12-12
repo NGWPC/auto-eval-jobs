@@ -1,23 +1,21 @@
-#!/usr/bin/env python3
-import unittest
+import json
 import os
 import subprocess
-import rasterio
-import numpy as np
 import sys
+import unittest
 from pathlib import Path
-import json  # <<< Add this import
 
-# --- Define project structure relative to this test file ---
+import numpy as np
+import rasterio
+
+# Resolve paths for tests
 TEST_DIR = Path(__file__).parent.resolve()
 MOCK_DATA_DIR = TEST_DIR / "mock_data"
 PROJECT_ROOT = TEST_DIR.parent  # Assumes test is in fim_mosaicker/test/
 SCRIPT_PATH = PROJECT_ROOT / "mosaic.py"
-# --- End Structure Definition ---
 
 
 class TestMosaicScript(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         cls.mock_data_dir = MOCK_DATA_DIR
@@ -27,7 +25,6 @@ class TestMosaicScript(unittest.TestCase):
         if not cls.script_path.exists():
             raise FileNotFoundError(f"Script not found at {cls.script_path}")
 
-        # Input raster paths using pathlib
         cls.raster_paths = [
             cls.mock_data_dir / "raster1.tif",
             cls.mock_data_dir / "raster2.tif",
@@ -37,18 +34,13 @@ class TestMosaicScript(unittest.TestCase):
         # Convert paths to strings for JSON serialization
         cls.raster_paths_str_list = [str(p) for p in cls.raster_paths]
 
-        # Output path using pathlib
         cls.output_path = cls.mock_data_dir / "mosaicked_raster.tif"
 
         # Check for input files
         missing_files = [p for p in cls.raster_paths if not p.exists()]
         if missing_files:
-            print(
-                f"\nWARNING: The following test raster files are missing: {missing_files}"
-            )
-            print(
-                "Run 'make_test_mosaic_data.py' in the mock_data directory or ensure they exist."
-            )
+            print(f"\nWARNING: The following test raster files are missing: {missing_files}")
+            print("Run 'make_test_mosaic_data.py' in the mock_data directory or ensure they exist.")
             print("Tests requiring these files may fail or be skipped.")
             cls.input_files_exist = False
         else:
@@ -59,7 +51,6 @@ class TestMosaicScript(unittest.TestCase):
         if not self.input_files_exist:
             self.skipTest("Skipping test because input raster files are missing")
 
-        # Remove the output file if it exists
         if self.output_path.exists():
             self.output_path.unlink()
 
@@ -86,32 +77,26 @@ class TestMosaicScript(unittest.TestCase):
         # Set log level if needed for debugging test failures
         # test_env['LOG_LEVEL'] = 'DEBUG'
 
-        print(
-            f"\nRunning command: {' '.join(cmd)}"
-        )  # Note: JSON string might make this long/hard to read
+        print(f"\nRunning command: {' '.join(cmd)}")
         print(f"With Environment: GDAL_CACHEMAX={test_env['GDAL_CACHEMAX']}")
 
         # Run with full output capture
         result = subprocess.run(cmd, capture_output=True, text=True, env=test_env)
 
-        # Print full output for debugging - stderr now contains JSON logs
         print(f"STDOUT:\n{result.stdout}")
-        print(f"STDERR:\n{result.stderr}")  # This will contain JSON logs
+        print(f"STDERR:\n{result.stderr}")  # This should contain JSON logs
 
-        # Check return code first
         self.assertEqual(
             result.returncode,
             0,
             f"Script failed with return code {result.returncode}. Check STDERR logs above.",
         )
 
-        # Check if the output file was created
         self.assertTrue(
             self.output_path.exists(),
             f"Mosaic output file was not created at {self.output_path}",
         )
 
-        # Verify the output raster properties (No changes needed here)
         try:
             with rasterio.open(self.output_path) as src:
                 # Check data type (uint8 for extent)
@@ -153,83 +138,77 @@ class TestMosaicScript(unittest.TestCase):
                 )
 
         except rasterio.RasterioIOError as e:
-            self.fail(
-                f"Failed to open or read the output raster file: {self.output_path}. Error: {e}"
-            )
-        # Optionally cleanup the created mosaic file if desired after test
-        # finally:
-        #     if self.output_path.exists():
-        #         self.output_path.unlink()
+            self.fail(f"Failed to open or read the output raster file: {self.output_path}. Error: {e}")
 
-    def test_mosaic_creation_parallel(self):
-        """Tests mosaic creation with parallel processing."""
-        if not self.input_files_exist:
-            self.skipTest("Skipping test because input raster files are missing")
+    def test_mosaic_creation_depth(self):
+        """Tests mosaic creation with fim_type='depth'."""
+        # Use depth-specific raster files
+        depth_raster_paths = [
+            self.mock_data_dir / "depth_raster1.tif",
+            self.mock_data_dir / "depth_raster2.tif",
+            self.mock_data_dir / "depth_raster3.tif",
+            self.mock_data_dir / "depth_raster4.tif",
+        ]
+        missing_depth_files = [p for p in depth_raster_paths if not p.exists()]
+        if missing_depth_files:
+            self.skipTest(f"Skipping test because depth raster files are missing: {missing_depth_files}")
 
-        # Create a separate output file for parallel test
-        parallel_output_path = self.mock_data_dir / "mosaicked_raster_parallel.tif"
-        
-        # Remove the output file if it exists
-        if parallel_output_path.exists():
-            parallel_output_path.unlink()
+        depth_output_path = self.mock_data_dir / "mosaicked_depth_raster.tif"
+        if depth_output_path.exists():
+            depth_output_path.unlink()
 
         # Prepare raster_paths as a single space-separated string
-        raster_paths_space_str = " ".join(self.raster_paths_str_list)
+        raster_paths_space_str = " ".join(str(p) for p in depth_raster_paths)
 
         cmd = [
-            sys.executable,  # Use the current Python interpreter
+            sys.executable,
             str(self.script_path),
             "--raster_paths",
-            raster_paths_space_str,  # Pass paths as space-separated list
+            raster_paths_space_str,
             "--mosaic_output_path",
-            str(parallel_output_path),
+            str(depth_output_path),
             "--fim_type",
-            "extent",
-            # Don't specify --parallel_blocks to test default behavior (CPU count/4)
+            "depth",
+            "--parallel_blocks",
+            "1",
         ]
 
-        # --- Set Environment Variables for subprocess ---
         test_env = os.environ.copy()
         test_env["GDAL_CACHEMAX"] = "1024"
 
-        print(f"\nRunning default parallel command: {' '.join(cmd)}")
+        print(f"\nRunning command: {' '.join(cmd)}")
         print(f"With Environment: GDAL_CACHEMAX={test_env['GDAL_CACHEMAX']}")
 
-        # Run with full output capture
         result = subprocess.run(cmd, capture_output=True, text=True, env=test_env)
 
-        # Print full output for debugging
         print(f"STDOUT:\n{result.stdout}")
         print(f"STDERR:\n{result.stderr}")
 
-        # Check return code first
         self.assertEqual(
             result.returncode,
             0,
-            f"Parallel script failed with return code {result.returncode}. Check STDERR logs above.",
+            f"Script failed with return code {result.returncode}. Check STDERR logs above.",
         )
 
-        # Check if the output file was created
         self.assertTrue(
-            parallel_output_path.exists(),
-            f"Parallel mosaic output file was not created at {parallel_output_path}",
+            depth_output_path.exists(),
+            f"Mosaic output file was not created at {depth_output_path}",
         )
 
-        # Verify the output raster properties
         try:
-            with rasterio.open(parallel_output_path) as src:
-                # Check data type (uint8 for extent)
+            with rasterio.open(depth_output_path) as src:
+                # Check data type (float32 for depth)
                 self.assertEqual(
                     src.dtypes[0],
-                    "uint8",
-                    f"Expected uint8 data type for extent, got {src.dtypes[0]}",
+                    "float32",
+                    f"Expected float32 data type for depth, got {src.dtypes[0]}",
                 )
 
-                # Check nodata value (255 for extent)
+                # Check nodata value (-9999 for depth)
                 self.assertEqual(
                     src.nodata,
-                    255,
-                    f"Expected 255 nodata value for extent, got {src.nodata}",
+                    -9999,
+                    f"Expected -9999 nodata value for depth, got {src.nodata}",
                 )
 
                 # Check that data exists
@@ -239,19 +218,27 @@ class TestMosaicScript(unittest.TestCase):
                     "Raster contains no valid data (all nodata values)",
                 )
 
-                # Check that there are 1s in the output
-                self.assertTrue(
-                    np.any(data == 1),
-                    "Extent raster doesn't contain any 1 values, but should have corner tiles with 1s based on mock data.",
-                )
+                # For depth type, check that valid values are non-negative floats
+                valid_data_mask = data != src.nodata
+                if np.any(valid_data_mask):
+                    valid_data = data[valid_data_mask]
+                    # Depth values should be >= 0 (no negative depths)
+                    self.assertTrue(
+                        np.all(valid_data >= 0),
+                        f"Depth raster contains negative values: min={valid_data.min()}",
+                    )
+
+                # Check that expected depth values are present in the mosaic
+                # Mock data has corners with depths: 1.01, 2.02, 3.03, 4.04
+                expected_depths = [1.01, 2.02, 3.03, 4.04]
+                for expected in expected_depths:
+                    self.assertTrue(
+                        np.any(np.isclose(data, expected, atol=0.01)),
+                        f"Depth raster doesn't contain expected depth value {expected}",
+                    )
 
         except rasterio.RasterioIOError as e:
-            self.fail(
-                f"Failed to open or read the parallel output raster file: {parallel_output_path}. Error: {e}"
-            )
-
-    # Add more tests here (e.g., test_mosaic_creation_depth, test_clipping, test_missing_input)
-    # Consider adding a test that uses a temporary file for the JSON input
+            self.fail(f"Failed to open or read the output raster file: {depth_output_path}. Error: {e}")
 
 
 if __name__ == "__main__":
