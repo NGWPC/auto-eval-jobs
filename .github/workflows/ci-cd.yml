@@ -33,8 +33,8 @@ jobs:
         run: |
           set -euo pipefail
           ORG="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
-          REPO="autoeval-jobs"
-          REPO_GVAL="autoeval-jobs-gval"
+          REPO="auto-eval-jobs"
+          REPO_GVAL="auto-eval-jobs-gval"
           IMAGE_BASE="${REGISTRY}/${ORG}/${REPO}"
           IMAGE_BASE_GVAL="${REGISTRY}/${ORG}/${REPO_GVAL}"
           echo "image_base=${IMAGE_BASE}" >> "$GITHUB_OUTPUT"
