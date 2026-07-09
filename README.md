@@ -6,8 +6,8 @@ Two Docker images are built from this repo:
 
 | Image | Jobs |
 |-------|------|
-| `ghcr.io/ngwpc/autoeval-jobs:owp-latest` | `hand_inundator`, `fim_mosaicker` |
-| `ghcr.io/ngwpc/autoeval-jobs-gval:owp-latest` | `agreement_maker`, `depth_evaluator` |
+| `ghcr.io/ngwpc/auto-eval-jobs:owp-latest` | `hand_inundator`, `fim_mosaicker` |
+| `ghcr.io/ngwpc/auto-eval-jobs-gval:owp-latest` | `agreement_maker`, `depth_evaluator` |
 
 Images are built and pushed automatically on push to `main` (tagged `latest`) and `owp-deployment` (tagged `owp-latest`). No registry authentication is required to pull.
 
