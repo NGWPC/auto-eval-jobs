@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   pull_request:
-    branches: [main, owp-deployment]
+    branches: [main]
   push:
-    branches: [main, owp-deployment]
+    branches: [main]
 
 permissions:
   contents: read
@@ -25,7 +25,6 @@ jobs:
       commit_sha: ${{ steps.vars.outputs.commit_sha }}
       commit_sha_short: ${{ steps.vars.outputs.commit_sha_short }}
       test_image_tag: ${{ steps.vars.outputs.test_image_tag }}
-      latest_tag: ${{ steps.vars.outputs.latest_tag }}
     steps:
       - name: Compute image vars
         id: vars
@@ -39,11 +38,6 @@ jobs:
           IMAGE_BASE_GVAL="${REGISTRY}/${ORG}/${REPO_GVAL}"
           echo "image_base=${IMAGE_BASE}" >> "$GITHUB_OUTPUT"
           echo "image_base_gval=${IMAGE_BASE_GVAL}" >> "$GITHUB_OUTPUT"
-          if [ "${GITHUB_REF_NAME}" = "owp-deployment" ]; then
-            echo "latest_tag=owp-latest" >> "$GITHUB_OUTPUT"
-          else
-            echo "latest_tag=latest" >> "$GITHUB_OUTPUT"
-          fi
           if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
             PR_NUM="${{ github.event.pull_request.number }}"
             PR_TAG="pr-${PR_NUM}-build"
@@ -98,7 +92,7 @@ jobs:
             maintainer=${{ github.actor }}
           tags: |
             ${{ needs.setup.outputs.image_base }}:${{ needs.setup.outputs.test_image_tag }}
-            ${{ needs.setup.outputs.image_base }}:${{ needs.setup.outputs.latest_tag }}
+            ${{ needs.setup.outputs.image_base }}:latest
 
       - name: Build & push auto-eval-jobs-gval image
         uses: docker/build-push-action@v6

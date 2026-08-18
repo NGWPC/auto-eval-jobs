@@ -6,10 +6,10 @@ Two Docker images are built from this repo:
 
 | Image | Jobs |
 |-------|------|
-| `ghcr.io/ngwpc/auto-eval-jobs:owp-latest` | `hand_inundator`, `fim_mosaicker` |
-| `ghcr.io/ngwpc/auto-eval-jobs-gval:owp-latest` | `agreement_maker`, `depth_evaluator` |
+| `ghcr.io/ngwpc/auto-eval-jobs:latest` | `hand_inundator`, `fim_mosaicker` |
+| `ghcr.io/ngwpc/auto-eval-jobs-gval:latest` | `agreement_maker`, `depth_evaluator` |
 
-Images are built and pushed automatically on push to `main` (tagged `latest`) and `owp-deployment` (tagged `owp-latest`). No registry authentication is required to pull.
+Images are built and pushed automatically on push to `main`. No registry authentication is required to pull.
 
 A more thorough description of the inputs and outputs of each job as well as the intended behavior of a job can be found in the jobs' [interfaces](/interfaces/interfaces.md) descriptions. A job interface is a formal specification of a job's inputs, outputs, and arguments specified using [json-schema](https://json-schema.org/). At the moment the interface yaml files serve as a guide for developers when (re)implementing jobs and for understanding the possible ways that jobs can interact through their inputs and outputs. In the future they could also be used to validate the data accepted and produced by each job.
 
