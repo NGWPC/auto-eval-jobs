@@ -1,8 +1,10 @@
 name: CI/CD Pipeline
 
 on:
+  pull_request:
+    branches: [main]
   push:
-    branches: [pi-7-deliverables]
+    branches: [main]
 
 permissions:
   contents: read
@@ -11,6 +13,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
+  PYTHON_VERSION: '3.12'
 
 jobs:
   setup:
@@ -29,8 +32,8 @@ jobs:
         run: |
           set -euo pipefail
           ORG="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
-          REPO="autoeval-jobs"
-          REPO_GVAL="autoeval-jobs-gval"
+          REPO="auto-eval-jobs"
+          REPO_GVAL="auto-eval-jobs-gval"
           IMAGE_BASE="${REGISTRY}/${ORG}/${REPO}"
           IMAGE_BASE_GVAL="${REGISTRY}/${ORG}/${REPO_GVAL}"
           echo "image_base=${IMAGE_BASE}" >> "$GITHUB_OUTPUT"
@@ -54,6 +57,8 @@ jobs:
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
     needs: setup
+    env:
+      CAN_PUSH: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - uses: actions/checkout@v4
 
@@ -62,18 +67,19 @@ jobs:
         run: echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
 
       - name: Log in to registry
+        if: env.CAN_PUSH == 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & push autoeval-jobs image
+      - name: Build & push auto-eval-jobs image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
-          push: true
+          push: ${{ env.CAN_PUSH == 'true' }}
           labels: |
             org.opencontainers.image.title=AutoEval Jobs
             org.opencontainers.image.description=Automated evaluation jobs application
@@ -85,18 +91,18 @@ jobs:
             org.opencontainers.image.documentation=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.authors=${{ github.actor }}
             org.opencontainers.image.licenses=MIT
-            org.opencontainers.image.vendor=Your Organization
+            org.opencontainers.image.vendor=NGWPC
             maintainer=${{ github.actor }}
           tags: |
             ${{ needs.setup.outputs.image_base }}:${{ needs.setup.outputs.test_image_tag }}
             ${{ needs.setup.outputs.image_base }}:latest
 
-      - name: Build & push autoeval-jobs-gval image
+      - name: Build & push auto-eval-jobs-gval image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile.gval
-          push: true
+          push: ${{ env.CAN_PUSH == 'true' }}
           labels: |
             org.opencontainers.image.title=AutoEval Jobs GVAL
             org.opencontainers.image.description=Automated evaluation jobs GVAL application
@@ -108,8 +114,59 @@ jobs:
             org.opencontainers.image.documentation=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.authors=${{ github.actor }}
             org.opencontainers.image.licenses=MIT
-            org.opencontainers.image.vendor=Your Organization
+            org.opencontainers.image.vendor=NGWPC
             maintainer=${{ github.actor }}
           tags: |
             ${{ needs.setup.outputs.image_base_gval }}:${{ needs.setup.outputs.test_image_tag }}
             ${{ needs.setup.outputs.image_base_gval }}:latest
+
+  sonarqube-internal:
+    if: (github.event_name == 'pull_request' || github.event_name == 'push') && github.repository_owner == 'NGWPC'
+    runs-on: self-hosted
+    needs: [setup, build]
+    continue-on-error: true
+    container:
+      image: sonarsource/sonar-scanner-cli
+      options: --entrypoint="" --user 0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: SonarQube Scan
+        env:
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: sonar-scanner -X -Dsonar.verbose=true
+
+  container-scanning:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    needs: [setup, build]
+    steps:
+      - name: Scan auto-eval-jobs image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ needs.setup.outputs.image_base }}:${{ needs.setup.outputs.test_image_tag }}
+          format: 'template'
+          template: '@/contrib/sarif.tpl'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+      - name: Upload auto-eval-jobs scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: 'trivy-auto-eval-jobs'
+
+      - name: Scan auto-eval-jobs-gval image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ needs.setup.outputs.image_base_gval }}:${{ needs.setup.outputs.test_image_tag }}
+          format: 'template'
+          template: '@/contrib/sarif.tpl'
+          output: 'trivy-results-gval.sarif'
+          severity: 'CRITICAL,HIGH'
+      - name: Upload auto-eval-jobs-gval scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results-gval.sarif'
+          category: 'trivy-auto-eval-jobs-gval'
